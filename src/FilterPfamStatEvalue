@@ -1,0 +1,91 @@
+#! /usr/bin/perl -w
+################################################################################
+# FilterPfamStatEvalue version 2.0
+# Copyright (C) Runmao Lin, Xiaowu Wang, Jian Wu, Jianli Liang, Xinlei Guo, 2019
+# Contact (E-mail): linrunmao@caas.cn
+# 
+# It is one of the programs belonging to PfamAnnotation pipeline (v2.0).
+#
+# Example:
+# FilterPfamStatEvalue  -Pfamstat  Pfam.out.norepeat.stat  -evalue  1e-5  -output  Pfam.out.1e-5.stat 
+# Note: 
+# (1) 'Pfam.out.norepeat.stat' is obtained by runnning CheckPfamStatRepeat
+# (2) CheckPfamStatRepeat is a program belonging to PfamAnnotation pipeline
+# (3) '1e-5' is the E-value
+# (4) 'Pfam.out.1e-5.stat' is the output file
+################################################################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin qw($Bin);
+use Data::Dumper;
+
+my $Pfamstat;
+my $output;
+my $evalue;
+my $help;
+my $version=sprintf("%.1f",1.0);
+
+GetOptions
+(
+	"Pfamstat=s" => \$Pfamstat,            # string
+	"evalue=f" => \$evalue,                # numeric
+	"output=s" => \$output,                # string
+	"help" => \$help                       # flag
+);
+
+################################################################################
+# usage
+############################# usage begin ######################################
+my $usage= << "USAGE";
+
+Example: $0  -Pfamstat  Pfam.out.norepeat.stat  -evalue  1e-5  -output  Pfam.out.1e-5.stat 
+version: 1.0
+Options:
+	-Pfamstat <file>                    It contains statistics of Pfam annotations, such as 'Pfam.out.norepeat.stat'
+	-evalue <numeric>                   such as '1e-5'
+	-output <file>                      such as 'Pfam.out.1e-5.stat' 
+	-help                               print help information
+
+USAGE
+############################## usage end #######################################
+
+if ($help || !(defined $Pfamstat) || !(defined $evalue) || !(defined $output))
+{
+	print $usage;
+	exit;
+}
+
+open OUT,">$output";
+
+############################## Pfam.out.norepeat.stat format ###################
+# Gene	PfamQuery	PfamAccession	FullE-value	FullScore	FullBias	DomainE-value	DomainScore	DomainBias	GeneDescription	PfamDescription
+# Bra033767	14-3-3	PF00244.19	2e-51	175.8	4.9	4.8e-46	158.2	2.0	--	14-3-3 protein
+# ...
+################################################################################
+if($Pfamstat=~/\.gz$/)
+{
+	open F,"gzip -dc $Pfamstat | " || die "Cannot open the file '$Pfamstat'.\n"; # reading the compressed gzip file
+}
+else
+{
+	open F,"$Pfamstat" || die "Cannot open the file '$Pfamstat'.\n"; # reading the uncompressed file
+}
+while(<F>)
+{
+	chomp;
+	my @sp=split(/\t/,$_);
+	if($_=~/^Gene\t/)
+	{
+		print OUT "$_\n";
+	}
+	elsif($_ ne "" && $sp[6]<=$evalue)
+	{
+		print OUT "$_\n";
+	}
+}
+close F;
+close OUT;
+
+__END__
