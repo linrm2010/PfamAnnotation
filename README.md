@@ -11,7 +11,7 @@ This pipeline is provided under the terms of a personal license to the recipient
 
 For using this pipeline in a company or for commercial purposes, a commercial license is required.
 
-The pipeline includes other five programs of ObtainPfamAStat, CheckPfamStatRepeat, FilterPfamStatEvalue, DomainListForGene, PfamFamilyStat
+The pipeline includes six programs of PfamAnnotation, ObtainPfamAStat, CheckPfamStatRepeat, FilterPfamStatEvalue, DomainListForGene, PfamFamilyStat
 
 # Requirement
 1. Download the Pfam hmm file (such as the 'Pfam-A.hmm' from Pfam v32.0, i.e., 'ftp://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam32.0/Pfam-A.hmm.gz'). Then uncompress the gz file by running the command:
@@ -46,3 +46,4 @@ El-Gebali S, Mistry J, Bateman A, Eddy SR, Luciani A, Potter SC, Qureshi M, Rich
 3. The citation of HMMER:
 
 http://hmmer.org/
+
