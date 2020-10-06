@@ -1,0 +1,98 @@
+#! /usr/bin/perl -w
+################################################################################
+# CheckPfamStatRepeat version 1.0
+# Copyright (C) Runmao Lin, Xiaowu Wang, Jian Wu, Jianli Liang, Xinlei Guo, 2019
+# Contact (E-mail): linrunmao@caas.cn
+# 
+# It is one of the programs belonging to PfamAnnotation pipeline (v1.0).
+#
+# Example:
+# CheckPfamStatRepeat  -Pfamstat  Pfam.out.stat  -output  Pfam.out.norepeat.stat 
+# Note: 
+# (1) 'Pfam.out.stat' is obtained by runnning ObtainPfamAStat
+# (2) ObtainPfamAStat is a program belonging to PfamAnnotation pipeline
+# (3) 'Pfam.out.norepeat.stat' is the output file
+################################################################################
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin qw($Bin);
+use Data::Dumper;
+
+my $Pfamstat;
+my $output;
+my $help;
+my $version=sprintf("%.1f",1.0);
+
+GetOptions
+(
+	"Pfamstat=s" => \$Pfamstat,            # string
+	"output=s" => \$output,                # string
+	"help" => \$help                       # flag
+);
+
+################################################################################
+# usage
+############################# usage begin ######################################
+my $usage= << "USAGE";
+
+Example: $0  -Pfamstat  Pfam.out.stat  -output  Pfam.out.norepeat.stat 
+version: 1.0
+Options:
+	-Pfamstat <file>                    It contains primary statistics of Pfam annotations, such as 'Pfam.out.stat'
+	-output <file>                      such as 'Pfam.out.norepeat.stat' 
+	-help                               print help information
+
+USAGE
+############################## usage end #######################################
+
+if ($help || !(defined $Pfamstat) || !(defined $output))
+{
+	print $usage;
+	exit;
+}
+
+############################## Pfam.out.stat format ############################
+# Gene	PfamQuery	PfamAccession	FullE-value	FullScore	FullBias	DomainE-value	DomainScore	DomainBias	GeneDescription	PfamDescription
+# Bra033767	14-3-3	PF00244.19	2e-51	175.8	4.9	4.8e-46	158.2	2.0	--	14-3-3 protein
+# Bra033767	14-3-3	PF00244.19	2e-51	175.8	4.9	0.001	19.7	0.1	--	14-3-3 protein
+# ...
+################################################################################
+my %stat;
+my %evalue;
+open OUT,">$output";
+open S,"$Pfamstat" || die "Cannot open the file '$Pfamstat'.\n"; # reading 'Pfam.out.stat'
+while(<S>)
+{
+	chomp;
+	my @sp=split(/\t/,$_);
+	if($_=~/^Gene\t/)
+	{
+		print OUT "$_\n"; # Title
+	}
+	elsif($_ ne "" && !(defined $evalue{$sp[2]}{$sp[0]})) # $evalue{PfamAccession}{Gene}
+	{
+		$stat{$sp[2]}{$sp[0]}="$_";
+		$evalue{$sp[2]}{$sp[0]}=$sp[6];
+	}
+	elsif($_ ne "" && defined $evalue{$sp[2]}{$sp[0]} && $evalue{$sp[2]}{$sp[0]}>$sp[6]) # selecting annotations with the smallest E-value
+	{
+		$stat{$sp[2]}{$sp[0]}="$_";
+		$evalue{$sp[2]}{$sp[0]}=$sp[6];
+	}
+}
+close S;
+
+################################################################################
+# output results
+################################################################################
+foreach my $pid(sort keys %stat)
+{
+	foreach my $gid(sort keys %{$stat{$pid}})
+	{
+		print OUT "$stat{$pid}{$gid}\n";
+	}
+}
+close OUT;
+
+__END__
