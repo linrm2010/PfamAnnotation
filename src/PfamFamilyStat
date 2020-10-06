@@ -1,0 +1,90 @@
+#! /usr/bin/perl -w
+################################################################################
+# PfamFamilyStat version 2.0
+# Copyright (C) Runmao Lin, Xiaowu Wang, Jian Wu, Jianli Liang, Xinlei Guo, 2019
+# Contact (E-mail): linrunmao@caas.cn
+# 
+# It is one of the programs belonging to PfamAnnotation pipeline (v2.0).
+#
+# Example:
+# PfamFamilyStat  -genedomain  pfam.out.genedomain  -output  Pfam.out.genedomain.stat 
+# Note: 
+# (1) 'Pfam.out.1e-5.stat.genedomain' is obtained by runnning DomainListForGene
+# (2) DomainListForGene is a program belonging to PfamAnnotation pipeline
+# (3) 'Pfam.out.1e-5.stat.genedomain.stat' is the output file
+################################################################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin qw($Bin);
+use Data::Dumper;
+
+my $genedomain;
+my $output;
+my $help;
+my $version=sprintf("%.1f",1.0);
+
+GetOptions
+(
+	"genedomain=s" => \$genedomain,        # string
+	"output=s" => \$output,                # string
+	"help" => \$help                       # flag
+);
+
+################################################################################
+# usage
+############################# usage begin ######################################
+my $usage= << "USAGE";
+
+Example: $0  -genedomain  pfam.out.genedomain  -output  Pfam.out.genedomain.stat 
+version: 1.0
+Options:
+	-genedomain <file>                  It contains gene domain annotations, such as 'pfam.out.genedomain'
+	-output <file>                      such as 'Pfam.out.genedomain.stat'
+	-help                               print help information
+
+USAGE
+############################## usage end #######################################
+
+if ($help || !(defined $genedomain) || !(defined $output))
+{
+	print $usage;
+	exit;
+}
+
+###################### Pfam.out.1e-5.stat.genedomain format ####################
+# Bra000001	PF03372.22	Exo_endo_phos	2.6e-13	4.3e-13	Endonuclease/Exonuclease/phosphatase family
+# ...
+################################################################################
+my %family;
+my %num;
+my %anno;
+open IN,"$genedomain" || die "Cannot open the file '$genedomain'.\n"; # reading 'Pfam.out.1e-5.stat.genedomain'
+while(<IN>)
+{
+	chomp;
+	if($_ ne "")
+	{
+		my @sp=split(/\t/,$_);
+		$anno{$sp[1]}="$sp[2]\t$sp[5]";
+		$num{$sp[1]}++;
+		$family{$sp[1]}.="$sp[0]\;";
+	}
+}
+close IN;
+
+################################################################################
+# prepare output file
+# 
+# Pfam.out.1e-5.stat.genedomain.stat format:
+# PF03372.22	44	Bra000001;Bra000333;Bra000691;Bra001833;Bra003014;Bra003342;Bra003344;Bra003916;Bra004120;Bra004419;Bra005195;Bra005638;Bra007403;Bra007737;Bra007969;Bra008968;Bra011231;Bra011657;Bra012624;Bra013275;Bra014566;Bra015428;Bra015445;Bra015615;Bra015956;Bra016124;Bra016932;Bra017187;Bra018061;Bra021766;Bra022326;Bra022698;Bra023195;Bra024353;Bra026626;Bra028775;Bra030617;Bra031783;Bra031881;Bra032456;Bra032613;Bra033309;Bra034444;Bra038426;	Exo_endo_phos	Endonuclease/Exonuclease/phosphatase family
+################################################################################
+open OUT,">$output";
+foreach my $id(sort keys %family)
+{
+	print OUT "$id\t$num{$id}\t$family{$id}\t$anno{$id}\n";
+}
+close OUT;
+
+__END__
