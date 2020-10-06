@@ -1,7 +1,10 @@
 # PfamAnnotation
 Performing gene annotation based on Pfam annotations on Linux operating systems.
+
 version 1.0
+
 Copyright (C) Runmao Lin
+
 Contact (E-mail): linrunmao@caas.cn
 
 This pipeline is provided under the terms of a personal license to the recipient and may only be used for the recipient's own research at an academic insititution.
