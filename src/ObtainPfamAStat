@@ -1,0 +1,142 @@
+#! /usr/bin/perl -w
+################################################################################
+# ObtainPfamAStat version 1.0
+# Copyright (C) Runmao Lin, Xiaowu Wang, Jian Wu, Jianli Liang, Xinlei Guo, 2019
+# Contact (E-mail): linrunmao@caas.cn
+# 
+# It is one of the programs belonging to PfamAnnotation pipeline (v1.0).
+#
+# Example:
+# ObtainPfamAStat  -domaintab  Pfam_domain.tab  -Pfamout  Pfam.out  -output  Pfam.out.stat 
+# Note: 
+# (1)'Pfam_domain.tab' and 'Pfam.out' are obtained by runnning hmmsearch analysis
+# (2) 'Pfam.out.stat' is the output file
+################################################################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin qw($Bin);
+use Data::Dumper;
+
+my $domaintab;
+my $Pfamout;
+my $output;
+my $help;
+my $version=sprintf("%.1f",1.0);
+
+GetOptions
+(
+	"domaintab=s" => \$domaintab,          # string
+	"Pfamout=s" => \$Pfamout,              # string
+	"output=s" => \$output,                # string
+	"help" => \$help                       # flag
+);
+
+################################################################################
+# usage
+############################# usage begin ######################################
+my $usage= << "USAGE";
+
+Example: $0  -domaintab  Pfam_domain.tab  -Pfamout  Pfam.out  -output  Pfam.out.stat 
+version: 1.0
+Options:
+	-domaintab <file>                   It contains domain information, such as 'Pfam_domain.tab'
+	-Pfamout <file>                     Pfam annotation file, such as 'Pfam.out'
+	-output <file>                      such as 'Pfam.out.stat'
+	-help                               print help information
+
+USAGE
+############################## usage end #######################################
+
+if ($help || !(defined $domaintab) || !(defined $Pfamout) || !(defined $output))
+{
+	print $usage;
+	exit;
+}
+
+############################## Pfam.out format #################################
+# Query:       1-cysPrx_C  [M=40]
+# Accession:   PF10417.8
+# Description: C-terminal domain of 1-Cys peroxiredoxin
+# Scores for complete sequences (score includes all domains):
+#    --- full sequence ---   --- best 1 domain ---    -#dom-
+#     E-value  score  bias    E-value  score  bias    exp  N  Sequence  Description
+#     ------- ------ -----    ------- ------ -----   ---- --  --------  -----------
+#     6.3e-11   43.1   0.1    1.3e-10   42.1   0.1    1.6  1  Bra009181  [mRNA]  locus=Scaffold000008:2755665:2757220:+ [tr
+#     8.1e-10   39.5   0.1    1.4e-09   38.8   0.1    1.4  1  Bra038667  [mRNA]  locus=Scaffold000151:19494:21191:+ [transl
+#     1.3e-09   38.9   0.1    2.2e-09   38.1   0.1    1.4  1  Bra001415  [mRNA]  locus=Scaffold000001:7497744:7499395:+ [tr
+#     1.3e-09   38.9   0.1    2.2e-09   38.2   0.1    1.4  1  Bra034824  [mRNA]  locus=Scaffold000098:660807:662118:- [tran
+#       4e-09   37.3   1.4    4.2e-09   37.3   0.2    1.7  2  Bra038102  [mRNA]  locus=Scaffold000139:82311:83303:+ [transl
+#     4.7e-09   37.1   1.4    4.7e-09   37.1   0.2    1.7  2  Bra032241  [mRNA]  locus=Scaffold000080:648503:649494:+ [tran
+#   ------ inclusion threshold ------
+#       0.028   15.4   2.2      0.028   15.4   2.2    3.6  4  Bra005750  [mRNA]  locus=Scaffold000005:427236:428605:- [tran
+#        0.15   13.0  11.4         10    7.2   0.3    3.4  2  Bra009561  [mRNA]  locus=Scaffold000008:4428818:4430080:- [tr
+#        0.25   12.4   0.1       0.44   11.6   0.1    1.4  1  Bra004889  [mRNA]  locus=Scaffold000004:2314366:2315456:+ [tr
+################################################################################
+my %pfamanno;
+open HMM,"$Pfamout" || die "Cannot open the file '$Pfamout'.\n"; # reading 'Pfam.out'
+$/="Query\:"; # split contents by "Query:" signals
+<HMM>;
+$/="\n"; # split contents by "\n"
+while(<HMM>)
+{
+	my $query=$_;
+	chomp $query;
+	$query=(split(/\s+/,$query))[1];
+	my $accession=<HMM>;
+	chomp $accession;
+	$accession=(split(/\s+/,$accession))[1]; # obtain the Pfam accession ID 
+	my $description=<HMM>;
+	chomp $description;
+	$description=~s/^Description: //;
+	$pfamanno{$accession}=$description; # obtain the description for the Pfam accession
+	<HMM>;#Scores for complete sequences (score includes all domains):
+	<HMM>;#   --- full sequence ---   --- best 1 domain ---    -#dom-
+	<HMM>;#    E-value  score  bias    E-value  score  bias    exp  N  Sequence Description
+	<HMM>;#    ------- ------ -----    ------- ------ -----   ---- --  -------- -----------
+	my $map=<HMM>;
+	chomp $map;
+	if($map ne "")
+	{
+		my @sp=split(/\s+/,$map);
+		while($map ne "" && (scalar @sp)>=10)#    1.7e-09   36.8   0.0    3.1e-09   36.0   0.0    1.5  1  AG1IA002820 
+		{
+#			print OUT "$sp[9]\t$query\t$accession\t$sp[1]\t$sp[2]\t$sp[3]\t$sp[4]\t$sp[5]\t$sp[6]\t--\t$description\n";
+			$map=<HMM>;
+			chomp $map;
+			@sp=split(/\s+/,$map);
+		}
+	}
+	$/="Query\:";
+	<HMM>;
+	$/="\n";
+}
+$/="\n";
+close HMM;
+
+############################## Pfam_domain.tab format ###############################
+# prepare the output, with the evalue cutoff of 0.01
+################################################################################
+open OUT,">$output";
+print OUT "Gene\tPfamQuery\tPfamAccession\tFullE-value\tFullScore\tFullBias\tDomainE-value\tDomainScore\tDomainBias\tGeneDescription\tPfamDescription\n";
+
+############################## Pfam_domain.tab format ###############################
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+# ENH70985.1           -           1231 AAA                  PF00004.24   132   1.1e-08   27.9   0.7   2   2   9.1e-06   1.5e-05   17.8   0.0     2   118  1041  1191  1040  1196 0.68 -
+# ...
+################################################################################
+open F,"$domaintab" || die "Cannot open the file '$domaintab'.\n"; # reading 'Pfam_domain.tab'
+while(<F>)
+{
+	chomp;
+	my @sp=split(/\s+/,$_);
+	if($_ ne "" && !($_=~/^\#/) && $sp[12]<=0.01) # the evalue cutoff of 0.01
+	{
+		print OUT "$sp[0]\t$sp[3]\t$sp[4]\t$sp[6]\t$sp[7]\t$sp[8]\t$sp[12]\t$sp[13]\t$sp[14]\t --\t$pfamanno{$sp[4]}\n";
+	}
+}
+close F;
+close OUT;
+
+__END__
