@@ -18,7 +18,9 @@ The pipeline includes six programs of PfamAnnotation, ObtainPfamAStat, CheckPfam
 
 gzip -d Pfam-A.hmm.gz
 
-2. Install the HMMER software (http://hmmer.org/download.html).
+2. Install perl.
+
+3. Install the HMMER software (http://hmmer.org/download.html).
 
 # Installation
 Go to the src direction, and type:
