@@ -1,0 +1,113 @@
+#! /usr/bin/perl -w
+################################################################################
+# DomainListForGene version 1.0
+# Copyright (C) Runmao Lin, Xiaowu Wang, Jian Wu, Jianli Liang, Xinlei Guo, 2019
+# Contact (E-mail): linrunmao@caas.cn
+# 
+# It is one of the programs belonging to PfamAnnotation pipeline (v2.0).
+#
+# Example:
+# DomainListForGene  -Pfamstat  Pfam.out.1e-5.stat 
+# Note: 
+# (1) 'Pfam.out.1e-5.stat' is obtained by runnning FilterPfamStatEvalue
+# (2) FilterPfamStatEvalue is a program belonging to PfamAnnotation pipeline
+# (3) output two files of 'Pfam.out.1e-5.stat.joinbygene' and 'Pfam.out.1e-5.stat.genedomain'
+################################################################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin qw($Bin);
+use Data::Dumper;
+
+my $Pfamstat;
+my $help;
+my $version=sprintf("%.1f",1.0);
+
+GetOptions
+(
+	"Pfamstat=s" => \$Pfamstat,            # string
+	"help" => \$help                       # flag
+);
+
+################################################################################
+# usage
+############################# usage begin ######################################
+my $usage= << "USAGE";
+
+Example: $0  -Pfamstat  Pfam.out.1e-5.stat 
+version: 1.0
+Options:
+	-Pfamstat <file>                    It contains statistics of Pfam annotations, such as 'Pfam.out.1e-5.stat'
+	-help                               print help information
+
+USAGE
+############################## usage end #######################################
+
+if ($help || !(defined $Pfamstat))
+{
+	print $usage;
+	exit;
+}
+
+############################## Pfam.out.stat format ############################
+# Gene	PfamQuery	PfamAccession	FullE-value	FullScore	FullBias	DomainE-value	DomainScore	DomainBias	GeneDescription	PfamDescription
+# Bra033767	14-3-3	PF00244.19	2e-51	175.8	4.9	4.8e-46	158.2	2.0	--	14-3-3 protein
+# ...
+################################################################################
+my (%query,%accession,%fullscore,%fullevalue,%fullbias,%domainevalue,%domainscore,%domainbias,%geneanno,%pfamanno,%genedomain);
+my 	$line=0;
+if($Pfamstat=~/\.gz$/)
+{
+	open IN,"gzip -dc $Pfamstat | " || die "Cannot open the file '$Pfamstat'.\n"; # reading the compressed gzip file
+}
+else
+{
+	open IN,"$Pfamstat" || die "Cannot open the file '$Pfamstat'.\n"; # # reading the uncompressed file
+}
+while(<IN>)
+{
+	chomp;
+	my @sp=split(/\t+/,$_);
+	$line++;
+	if($line>1)
+	{
+		$query{$sp[0]}.="$sp[1]\;";
+		$accession{$sp[0]}.="$sp[2]\;";
+		$fullevalue{$sp[0]}.="$sp[3]\;";
+		$fullscore{$sp[0]}.="$sp[4]\;";
+		$fullbias{$sp[0]}.="$sp[5]\;";
+		$domainevalue{$sp[0]}.="$sp[6]\;";
+		$domainscore{$sp[0]}.="$sp[7]\;";
+		$domainbias{$sp[0]}.="$sp[8]\;";
+		$geneanno{$sp[0]}="$sp[9]";
+		$pfamanno{$sp[0]}.="$sp[10]\;";
+		$genedomain{$sp[0]}.="$sp[0]\t$sp[2]\t$sp[1]\t$sp[3]\t$sp[6]\t$sp[10]\n";
+	}
+}
+close IN;
+
+################################################################################
+# preparing output files
+################################################################################
+open OUT,">$Pfamstat\.joinbygene";
+print OUT "Gene\tPfamquery\tPfamAccession\tFullE-value\tFullScore\tFullBias\tDomainE-value\tDomainScore\tDomainBias\tGeneDescription\tPfamDescription\n";
+open GD,">$Pfamstat\.genedomain";
+foreach my $genename(sort keys %query)
+{
+	$query{$genename}=~s/\;$//;
+	$accession{$genename}=~s/\;$//;
+	$fullevalue{$genename}=~s/\;$//;
+	$fullscore{$genename}=~s/\;$//;
+	$fullbias{$genename}=~s/\;$//;
+	$domainevalue{$genename}=~s/\;$//;
+	$domainscore{$genename}=~s/\;$//;
+	$domainbias{$genename}=~s/\;$//;
+	$pfamanno{$genename}=~s/\;$//;
+	print OUT "$genename\t$query{$genename}\t$accession{$genename}\t$fullevalue{$genename}\t$fullscore{$genename}\t$fullbias{$genename}\t$domainevalue{$genename}\t$domainscore{$genename}\t$domainbias{$genename}\t$geneanno{$genename}\t$pfamanno{$genename}\n";
+	print GD $genedomain{$genename};
+}
+close OUT;
+close GD;
+
+__END__
