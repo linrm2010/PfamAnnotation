@@ -1,0 +1,136 @@
+#! /usr/bin/perl -w
+################################################################################
+# PfamAnnotation version 1.0
+# Copyright (C) Runmao Lin, Xiaowu Wang, Jian Wu, Jianli Liang, Xinlei Guo, 2019
+# Contact (E-mail): linrunmao@caas.cn
+# 
+# This pipeline is provided under the terms of a personal license to the recipient and 
+# may only be used for the recipient's own research at an academic insititution.
+# 
+# For using this pipeline in a company or for commercial purposes, a commercial license 
+# is required.
+# 
+# The purpose of this pipeline is to perform Pfam annotation for protein-coding genes 
+# 
+# The pipeline includes other five programs of ObtainPfamAStat, CheckPfamStatRepeat
+# FilterPfamStatEvalue, DomainListForGene, PfamFamilyStat
+# 
+# The pipeline requires Pfam-A.hmm and hmmsearch:
+# (1) Pfam-A.hmm 
+# It can be downloaded from:
+# ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz
+# 
+# (2) hmmsearch
+# It is included in HMMER software and can be downloaded from:
+# http://hmmer.org/
+################################################################################
+
+use strict;
+use warnings;
+use Getopt::Long;
+use FindBin qw($Bin);
+use Data::Dumper;
+
+my $hmmfile;
+my $hmmsearch;
+my $proteins;
+my $threads;
+my $evalue;
+my $outprefix;
+my $help;
+my $version=sprintf("%.1f",1.0);
+
+GetOptions
+(
+	"hmmfile=s" => \$hmmfile,        # string
+	"hmmsearch=s" => \$hmmsearch,    # string
+	"proteins=s" => \$proteins,      # string
+	"threads=i" => \$threads,        # numeric
+	"evalue=i" => \$evalue,          # numeric
+	"outprefix=s" => \$outprefix,    # string
+	"help" => \$help                 # flag
+);
+
+################################################################################
+# usage
+############################# usage begin ######################################
+my $usage= << "USAGE";
+
+Example: $0 -hmmfile  /databases/Pfam/Pfam-A.hmm  -hmmsearch  /bin/hmmsearch  -proteins  gene.pep  -outprefix  Pfam-annotation 
+version: 1.0
+Options:
+	-hmmfile <file>              require, the full path for Pfam-A.hmm file, such as '/databases/Pfam/Pfam-A.hmm'
+	-hmmsearch <file>            require, the full path for hmmsearch program, such as '/bin/hmmsearch'
+	-proteins <file>             require, the file contains amino acids of genes, such as 'gene.pep'
+	-outprefix <output prefix>   require, prefix for output files, such as 'Pfam-annotation'
+	-threads <int>               default: 10
+	-evalue <int>                default: 1e-5
+	-help                        print help information
+
+USAGE
+############################## usage end #######################################
+
+if ($help || !(defined $hmmfile) || !(defined $hmmsearch) || !(defined $proteins) || !(defined $outprefix))
+{
+	print $usage;
+	exit;
+}
+
+if(!(defined $threads))
+{
+	$threads=10;
+}
+
+if(!(defined $evalue))
+{
+	$evalue=1e-5;
+}
+
+my @months = qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
+my ($timesecond, $timeminute, $timehour, $timedaymonths, $timemonth, $timeyear, $timedayweek, $timedayYear, $timedaylightsavings) = localtime();
+$timeyear+=1900;
+
+print "[$timehour\:$timeminute\:$timesecond\, $months[$timemonth] $timedaymonths\, $timeyear]\n";
+print "Start to run the 'PfamAnnotation' pipeline ...\n";
+
+################################################################################
+# Identify gene domain sequences based on Pfam-A.hmm sequences by running hmmsearch program 
+################################################################################
+print "Searching domain sequences ...\n";
+system(" $hmmsearch --domtblout $outprefix\_domain.tab --cpu $threads $hmmfile $proteins > $outprefix\_Pfam.out ");
+
+################################################################################
+# Statisitcs of gene domain sequences 
+################################################################################
+print "Statisitcs of domains ...\n";
+system(" $Bin/ObtainPfamAStat -domaintab $outprefix\_domain.tab -Pfamout $outprefix\_Pfam.out -output $outprefix\_Pfam.out.stat ");
+
+################################################################################
+# check repeat annotations and maintain anntations (gene, pfam domain) with smallest evalues 
+################################################################################
+system(" $Bin/CheckPfamStatRepeat -Pfamstat $outprefix\_Pfam.out.stat -output $outprefix\_Pfam.out.norepeat.stat ");
+
+################################################################################
+# a further selection of anntations (gene, pfam domain) with E-value <= 1e-5 ($evalue) 
+################################################################################
+system(" $Bin/FilterPfamStatEvalue -Pfamstat $outprefix\_Pfam.out.norepeat.stat -evalue $evalue -output $outprefix\_Pfam.out.$evalue\.stat ");
+
+################################################################################
+# a summary of anntations (gene, pfam domain) with E-value <= 1e-5 ($evalue) 
+################################################################################
+system(" $Bin/DomainListForGene -Pfamstat $outprefix\_Pfam.out.$evalue\.stat ");
+system(" $Bin/PfamFamilyStat -genedomain $outprefix\_Pfam.out.$evalue\.stat.genedomain -output $outprefix\_Pfam.out.$evalue\.stat.genedomain.stat ");
+
+################################################################################
+# remove the intermediate files and compress files 
+################################################################################
+system(" rm $outprefix\_Pfam.out.stat $outprefix\_Pfam.out.norepeat.stat $outprefix\_Pfam.out.$evalue\.stat ");
+system(" gzip -f $outprefix\_domain.tab ");
+system(" gzip -f $outprefix\_Pfam.out ");
+
+print "End of the pipeline for Pfam annotation.\n";
+($timesecond, $timeminute, $timehour, $timedaymonths, $timemonth, $timeyear, $timedayweek, $timedayYear, $timedaylightsavings) = localtime();
+$timeyear+=1900;
+print "[$timehour\:$timeminute\:$timesecond\, $months[$timemonth] $timedaymonths\, $timeyear]\n\n";
+
+__END__
