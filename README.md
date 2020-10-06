@@ -18,7 +18,7 @@ The pipeline includes six programs of PfamAnnotation, ObtainPfamAStat, CheckPfam
 
 gzip -d Pfam-A.hmm.gz
 
-2. Install perl.
+2. Install perl and packages of Getopt, FindBin, Data.
 
 3. Install the HMMER software (http://hmmer.org/download.html).
 
